@@ -1,3 +1,4 @@
+```html
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -749,6 +750,10 @@
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
       Historial
     </button>
+    <button class="btn-ghost" onclick="manualSave()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      Guardar
+    </button>
     <button class="btn-ghost" onclick="newQuote()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v16m8-8H4"/></svg>
       Nuevo
@@ -920,22 +925,17 @@
           </linearGradient>
         </defs>
         <g fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="0.75">
-          <!-- Delicate Purple Contour Waves -->
           <g stroke="url(#wmPurple)" stroke-width="0.8">
             <path d="M-60,760 C80,680 220,750 260,890 C290,980 250,1070 140,1110 C40,1150 -30,1080 -60,960 Z"/>
             <path d="M-80,710 C90,610 260,690 310,860 C350,970 300,1090 170,1140 C40,1190 -50,1100 -90,940 Z"/>
             <path d="M-100,660 C100,540 300,630 360,830 C410,960 350,1110 200,1170 C50,1220 -70,1120 -110,920 Z"/>
-            
             <path d="M540,710 C470,650 540,560 630,590 C700,620 690,730 610,770 C540,810 500,760 540,710 Z"/>
             <path d="M480,680 C380,600 480,450 650,500 C760,540 750,760 640,830 C530,890 440,820 480,680 Z"/>
             <path d="M420,650 C290,530 440,320 690,400 C830,460 830,780 680,900 C530,990 330,910 420,650 Z"/>
             <path d="M360,620 C200,460 400,200 730,300 C900,370 900,810 720,960 C530,1080 240,990 360,620 Z"/>
-
             <path d="M880,760 C780,700 680,790 660,900 C640,970 680,1040 770,1070 C820,1090 870,1070 890,1040"/>
             <path d="M890,690 C760,620 640,730 610,870 C590,970 650,1070 760,1110 C830,1140 880,1100 910,1060"/>
           </g>
-          
-          <!-- Subtle Orange Flowing Waves -->
           <g stroke="url(#wmOrange)" stroke-width="0.7">
             <path d="M-40,430 C140,340 330,460 420,640 C470,750 430,900 290,990 C120,1080 -30,970 -70,790 Z"/>
             <path d="M-20,490 C160,390 350,510 440,690 C490,800 440,950 310,1030 C150,1110 -10,1020 -50,840 Z"/>
@@ -1012,7 +1012,7 @@
           </table>
         </div>
 
-        <!-- Bottom Grid: Notes/Payment Terms + Totals -->
+        <!-- Bottom Grid: Notes/Terms + Totals -->
         <div class="doc-bottom-grid">
           
           <div class="doc-notes-box" id="docNotesBox">
@@ -1166,6 +1166,28 @@
 </div>
 
 <script>
+/* ================= UTILS ================= */
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+let toastTimer = null;
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+  }, 3200);
+}
+
 /* ================= STORAGE CONTROLLER ================= */
 const appStorage = {
   get(key) {
@@ -1214,16 +1236,15 @@ let company = {
   logo: DEFAULT_LOGO
 };
 
-// Starting counter at 115 for quotes as requested!
 let counters = {
   presupuesto: 115,
   entrega: 1
 };
 
-let docType = 'presupuesto'; // 'presupuesto' | 'entrega'
+let docType = 'presupuesto'; 
 let products = [];
+let currentDocId = null;
 
-/* Format number to 4 digits (e.g. 115 -> "0115", 1 -> "0001") */
 function formatNumber(num) {
   const n = parseInt(num, 10) || 1;
   return n.toString().padStart(4, '0');
@@ -1231,32 +1252,15 @@ function formatNumber(num) {
 
 /* ================= INITIALIZATION ================= */
 function initApp() {
-  // Load Company from storage
   const savedCompany = appStorage.get('company');
   if (savedCompany) company = { ...company, ...savedCompany };
 
-  // Load Counters from storage
   const savedCounters = appStorage.get('counters');
   if (savedCounters) {
     if (savedCounters.presupuesto !== undefined) counters.presupuesto = parseInt(savedCounters.presupuesto, 10);
     if (savedCounters.entrega !== undefined) counters.entrega = parseInt(savedCounters.entrega, 10);
   }
 
-  // Set default initial date to today
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('quoteDate').value = today;
-
-  // Set default products if empty
-  if (products.length === 0) {
-    products = [
-      { desc: 'Stickers en Vinil Adhesivo Laminado Troquelado (Pack 50 und)', qty: 2, price: 12.50 }
-    ];
-  }
-
-  // Set initial correlative (0115)
-  setInitialNumberForCurrentType();
-
-  // Populate Notes default
   if (!document.getElementById('notes').value) {
     document.getElementById('notes').value = 
       '• Precios sujetos a cambio sin previo aviso.\n' +
@@ -1265,7 +1269,7 @@ function initApp() {
       '• Pagos: Pago Móvil / Transferencia / Binance / Efectivo Divisas.';
   }
 
-  render();
+  newQuote(true);
 }
 
 function setInitialNumberForCurrentType() {
@@ -1316,8 +1320,42 @@ function setDocType(type) {
 }
 
 /* ================= PRODUCT MANAGEMENT ================= */
+function renderProductForm() {
+  const productListEl = document.getElementById('productList');
+  const currency = document.getElementById('currency').value || '$';
+  let formHtml = '';
+
+  products.forEach((p, idx) => {
+    const qty = parseFloat(p.qty) || 0;
+    const price = parseFloat(p.price) || 0;
+    const lineTotal = (qty * price).toFixed(2);
+    formHtml += `
+      <div class="product-row">
+        <div class="grid">
+          <div>
+            <label>Descripción</label>
+            <input type="text" value="${escapeHtml(p.desc)}" placeholder="Detalle del producto" oninput="updateProduct(${idx}, 'desc', this.value)">
+          </div>
+          <div>
+            <label>Cant.</label>
+            <input type="number" value="${escapeHtml(p.qty)}" min="0.01" step="any" oninput="updateProduct(${idx}, 'qty', this.value)">
+          </div>
+          <div>
+            <label>P. Unit (<span class="currency-lbl">${escapeHtml(currency)}</span>)</label>
+            <input type="number" value="${escapeHtml(p.price)}" min="0" step="any" oninput="updateProduct(${idx}, 'price', this.value)">
+          </div>
+          <button type="button" class="rm-btn" onclick="removeProduct(${idx})" title="Eliminar">✕</button>
+        </div>
+        <div class="mini-total" id="mini-total-${idx}">Subtotal: <span>${escapeHtml(currency)} ${lineTotal}</span></div>
+      </div>
+    `;
+  });
+  productListEl.innerHTML = formHtml;
+}
+
 function addProduct() {
   products.push({ desc: '', qty: 1, price: 0 });
+  renderProductForm();
   render();
 }
 
@@ -1327,30 +1365,33 @@ function removeProduct(idx) {
   } else {
     products.splice(idx, 1);
   }
+  renderProductForm();
   render();
 }
 
 function updateProduct(idx, field, value) {
   if (!products[idx]) return;
-  if (field === 'desc') {
-    products[idx].desc = value;
-  } else if (field === 'qty') {
-    products[idx].qty = parseFloat(value) || 0;
-  } else if (field === 'price') {
-    products[idx].price = parseFloat(value) || 0;
+  products[idx][field] = value;
+
+  const currency = document.getElementById('currency').value || '$';
+  const qty = parseFloat(products[idx].qty) || 0;
+  const price = parseFloat(products[idx].price) || 0;
+  const lineTotal = (qty * price).toFixed(2);
+  const miniTotalEl = document.getElementById(`mini-total-${idx}`);
+  if (miniTotalEl) {
+    miniTotalEl.innerHTML = `Subtotal: <span>${escapeHtml(currency)} ${lineTotal}</span>`;
   }
+  
   render();
 }
 
 /* ================= RENDER ENGINE ================= */
 function render() {
-  // Update Logo
   const docLogoImg = document.getElementById('docLogoImg');
   if (docLogoImg) {
     docLogoImg.src = company.logo || DEFAULT_LOGO;
   }
 
-  // Build Company Meta HTML with precise icons & clean lines
   let metaHtml = '';
   if (company.address) {
     metaHtml += `<span><svg class="icon-purple-fill" viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z"/></svg>${escapeHtml(company.address)}</span>`;
@@ -1369,7 +1410,6 @@ function render() {
   }
   document.getElementById('docCompanyMeta').innerHTML = metaHtml;
 
-  // Footer Contact & Info
   const footerPhoneEl = document.getElementById('docFooterPhone');
   if (footerPhoneEl) {
     footerPhoneEl.textContent = company.phone || '0412-3720318 · 02127104501';
@@ -1384,7 +1424,6 @@ function render() {
     }
   }
 
-  // Correlative & Dates
   const rawNum = document.getElementById('quoteNumber').value.trim();
   const formattedNum = rawNum ? (rawNum.startsWith('N.°') || rawNum.startsWith('N°') ? rawNum : 'N.° ' + formatNumber(rawNum)) : 'N.° ' + formatNumber(counters[docType]);
   document.getElementById('docNumber').textContent = formattedNum;
@@ -1406,7 +1445,6 @@ function render() {
   }
   document.getElementById('docDateMeta').innerHTML = dateMetaHtml;
 
-  // Client info
   const clientName = document.getElementById('clientName').value.trim();
   const clientCompany = document.getElementById('clientCompany').value.trim();
   const clientId = document.getElementById('clientId').value.trim();
@@ -1429,39 +1467,9 @@ function render() {
   }
   document.getElementById('docContactSub').textContent = contactSubs.length > 0 ? contactSubs.join(' · ') : '—';
 
-  // Render Product list in Form
-  const productListEl = document.getElementById('productList');
-  const currency = document.getElementById('currency').value || '$';
-  let formHtml = '';
-
-  products.forEach((p, idx) => {
-    const lineTotal = (p.qty * p.price).toFixed(2);
-    formHtml += `
-      <div class="product-row">
-        <div class="grid">
-          <div>
-            <label>Descripción</label>
-            <input type="text" value="${escapeHtml(p.desc)}" placeholder="Detalle del producto" oninput="updateProduct(${idx}, 'desc', this.value)">
-          </div>
-          <div>
-            <label>Cant.</label>
-            <input type="number" value="${p.qty}" min="0.01" step="any" oninput="updateProduct(${idx}, 'qty', this.value)">
-          </div>
-          <div>
-            <label>P. Unit (${currency})</label>
-            <input type="number" value="${p.price}" min="0" step="any" oninput="updateProduct(${idx}, 'price', this.value)">
-          </div>
-          <button type="button" class="rm-btn" onclick="removeProduct(${idx})" title="Eliminar">✕</button>
-        </div>
-        <div class="mini-total">Subtotal: <span>${currency} ${lineTotal}</span></div>
-      </div>
-    `;
-  });
-  productListEl.innerHTML = formHtml;
-
-  // Render Products in Doc Table
   const docItemsEl = document.getElementById('docItems');
   const docItemsHeadEl = document.getElementById('docItemsHead');
+  const currency = document.getElementById('currency').value || '$';
   const isDelivery = (docType === 'entrega');
   const showPricesInDelivery = document.getElementById('showPrices').checked;
 
@@ -1483,8 +1491,8 @@ function render() {
   let subtotal = 0;
 
   products.forEach((p) => {
-    const qty = p.qty || 0;
-    const price = p.price || 0;
+    const qty = parseFloat(p.qty) || 0;
+    const price = parseFloat(p.price) || 0;
     const lineTotal = qty * price;
     subtotal += lineTotal;
 
@@ -1500,8 +1508,8 @@ function render() {
         <tr>
           <td class="td-desc">${escapeHtml(p.desc) || '—'}</td>
           <td class="td-mono">${qty}</td>
-          <td class="td-mono">${currency} ${price.toFixed(2)}</td>
-          <td class="td-mono" style="font-weight:700;">${currency} ${lineTotal.toFixed(2)}</td>
+          <td class="td-mono">${escapeHtml(currency)} ${price.toFixed(2)}</td>
+          <td class="td-mono" style="font-weight:700;">${escapeHtml(currency)} ${lineTotal.toFixed(2)}</td>
         </tr>
       `;
     }
@@ -1512,7 +1520,6 @@ function render() {
   }
   docItemsEl.innerHTML = tableRowsHtml;
 
-  // Calculate & Render Totals
   const useDiscount = document.getElementById('useDiscount').checked;
   const discountPct = parseFloat(document.getElementById('discountPct').value) || 0;
   const discountAmt = useDiscount ? (subtotal * (discountPct / 100)) : 0;
@@ -1533,7 +1540,7 @@ function render() {
     let totalsHtml = `
       <div class="totals-line">
         <span>Subtotal</span>
-        <span class="amt">${currency} ${subtotal.toFixed(2)}</span>
+        <span class="amt">${escapeHtml(currency)} ${subtotal.toFixed(2)}</span>
       </div>
     `;
 
@@ -1541,7 +1548,7 @@ function render() {
       totalsHtml += `
         <div class="totals-line discount">
           <span>Descuento (${discountPct}%)</span>
-          <span class="amt">-${currency} ${discountAmt.toFixed(2)}</span>
+          <span class="amt">-${escapeHtml(currency)} ${discountAmt.toFixed(2)}</span>
         </div>
       `;
     }
@@ -1550,16 +1557,15 @@ function render() {
       totalsHtml += `
         <div class="totals-line">
           <span>IVA (${taxPct}%)</span>
-          <span class="amt">+${currency} ${taxAmt.toFixed(2)}</span>
+          <span class="amt">+${escapeHtml(currency)} ${taxAmt.toFixed(2)}</span>
         </div>
       `;
     }
 
     docTotalsList.innerHTML = totalsHtml;
-    document.getElementById('docGrandTotal').textContent = `${currency} ${grandTotal.toFixed(2)}`;
+    document.getElementById('docGrandTotal').textContent = `${escapeHtml(currency)} ${grandTotal.toFixed(2)}`;
   }
 
-  // Render Notes
   const notesVal = document.getElementById('notes').value.trim();
   const docNotesBox = document.getElementById('docNotesBox');
   if (notesVal) {
@@ -1569,58 +1575,74 @@ function render() {
     docNotesBox.style.display = 'none';
   }
 
-  // Render Signatures toggle
   const showSigs = document.getElementById('showSignatures').checked;
   document.getElementById('docSignatures').style.display = showSigs ? 'grid' : 'none';
+
+  const currencyLbls = document.querySelectorAll('.currency-lbl');
+  currencyLbls.forEach(el => el.textContent = currency);
+  products.forEach((p, idx) => {
+    const miniTotalEl = document.getElementById(`mini-total-${idx}`);
+    if (miniTotalEl) {
+      const q = parseFloat(p.qty) || 0;
+      const pr = parseFloat(p.price) || 0;
+      miniTotalEl.innerHTML = `Subtotal: <span>${escapeHtml(currency)} ${(q * pr).toFixed(2)}</span>`;
+    }
+  });
 }
 
-/* ================= ACTIONS: NEW QUOTE ================= */
-function newQuote() {
-  // Clear client info
-  document.getElementById('clientName').value = '';
-  document.getElementById('clientCompany').value = '';
-  document.getElementById('clientId').value = '';
-  document.getElementById('clientPhone').value = '';
-  document.getElementById('clientEmail').value = '';
-  document.getElementById('quoteReference').value = '';
+/* ================= ACTIONS ================= */
+function newQuote(isInit = false) {
+  currentDocId = null;
 
-  // Reset to current date
+  if (isInit === true) {
+    if (products.length === 0) {
+      products = [{ desc: 'Stickers en Vinil Adhesivo Laminado Troquelado (Pack 50 und)', qty: 2, price: 12.50 }];
+    }
+  } else {
+    document.getElementById('clientName').value = '';
+    document.getElementById('clientCompany').value = '';
+    document.getElementById('clientId').value = '';
+    document.getElementById('clientPhone').value = '';
+    document.getElementById('clientEmail').value = '';
+    document.getElementById('quoteReference').value = '';
+    products = [{ desc: '', qty: 1, price: 0 }];
+  }
+
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('quoteDate').value = today;
-
-  // Set number according to current counter (starts at 0115)
   setInitialNumberForCurrentType();
 
-  // Reset products with 1 empty row
-  products = [{ desc: '', qty: 1, price: 0 }];
-
+  renderProductForm();
   render();
-  showToast('Nuevo documento iniciado');
+
+  if (isInit !== true) {
+    showToast('Nuevo documento iniciado');
+  }
 }
 
-/* Increment counter after saving/exporting */
 function incrementCurrentCounter() {
   const rawNum = document.getElementById('quoteNumber').value.trim();
   const currentNum = parseInt(rawNum.replace(/\D/g, ''), 10) || counters[docType] || (docType === 'presupuesto' ? 115 : 1);
   
-  // Update counter to next number
   counters[docType] = currentNum + 1;
   appStorage.set('counters', counters);
 
-  // Update input
   document.getElementById('quoteNumber').value = formatNumber(counters[docType]);
+  currentDocId = null;
   render();
 }
 
-/* ================= ACTIONS: SAVE TO HISTORY ================= */
 function saveCurrentDocumentToHistory() {
+  if (!currentDocId) {
+    currentDocId = 'doc_' + Date.now();
+  }
+
   const number = document.getElementById('quoteNumber').value.trim() || formatNumber(counters[docType]);
   const date = document.getElementById('quoteDate').value || new Date().toISOString().split('T')[0];
-  const clientName = document.getElementById('clientName').value.trim() || 'Cliente';
   const currency = document.getElementById('currency').value || '$';
   
   let subtotal = 0;
-  products.forEach(p => { subtotal += (p.qty * p.price); });
+  products.forEach(p => { subtotal += ((parseFloat(p.qty)||0) * (parseFloat(p.price)||0)); });
   const useDiscount = document.getElementById('useDiscount').checked;
   const discountPct = parseFloat(document.getElementById('discountPct').value) || 0;
   const discountAmt = useDiscount ? (subtotal * (discountPct / 100)) : 0;
@@ -1630,7 +1652,7 @@ function saveCurrentDocumentToHistory() {
   const grandTotal = subAfterDisc + (useTax ? (subAfterDisc * (taxPct / 100)) : 0);
 
   const docRecord = {
-    id: 'doc_' + Date.now(),
+    id: currentDocId,
     type: docType,
     number: number,
     date: date,
@@ -1662,14 +1684,18 @@ function saveCurrentDocumentToHistory() {
   return docRecord;
 }
 
-/* ================= ACTIONS: DOWNLOAD IMAGE ================= */
+function manualSave() {
+  saveCurrentDocumentToHistory();
+  showToast('Documento guardado en el historial');
+}
+
 async function downloadImage() {
   showToast('Generando imagen de alta resolución...');
   const captureEl = document.getElementById('docCapture');
 
   try {
     const canvas = await html2canvas(captureEl, {
-      scale: 2, // 2x resolution for super crisp letter size
+      scale: 2, 
       useCORS: true,
       allowTaint: true,
       backgroundColor: '#ffffff'
@@ -1693,7 +1719,6 @@ async function downloadImage() {
   }
 }
 
-/* ================= ACTIONS: DOWNLOAD PDF / PRINT ================= */
 function downloadPDF() {
   saveCurrentDocumentToHistory();
   incrementCurrentCounter();
@@ -1770,7 +1795,6 @@ function openHistoryModal() {
   if (docKeys.length === 0) {
     listEl.innerHTML = '<div style="text-align:center; color:var(--text-dim); padding:24px; font-size:13px;">No hay presupuestos guardados aún.</div>';
   } else {
-    // Sort newest first
     docKeys.sort((a, b) => b.localeCompare(a));
     let html = '';
 
@@ -1807,6 +1831,7 @@ function closeHistoryModal() {
 function loadDocument(key) {
   const doc = appStorage.get(key);
   if (!doc) return;
+  currentDocId = key;
 
   setDocType(doc.type || 'presupuesto');
   document.getElementById('quoteNumber').value = doc.number || '';
@@ -1840,6 +1865,7 @@ function loadDocument(key) {
   document.getElementById('showSignatures').checked = doc.showSignatures !== false;
 
   closeHistoryModal();
+  renderProductForm();
   render();
   showToast(`Documento ${doc.number} cargado`);
 }
@@ -1863,30 +1889,8 @@ function closeConfirm() {
   document.getElementById('confirmModal').classList.remove('open');
 }
 
-/* ================= UTILS ================= */
-function escapeHtml(str) {
-  if (!str) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-let toastTimer = null;
-function showToast(msg) {
-  const toast = document.getElementById('toast');
-  document.getElementById('toastMsg').textContent = msg;
-  toast.classList.add('show');
-  if (toastTimer) clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => {
-    toast.classList.remove('show');
-  }, 3200);
-}
-
-// Start app on DOMContentLoaded
 window.addEventListener('DOMContentLoaded', initApp);
 </script>
 </body>
 </html>
+```
